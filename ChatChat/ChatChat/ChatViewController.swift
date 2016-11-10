@@ -41,6 +41,23 @@ final class ChatViewController: JSQMessagesViewController {
     
     private lazy var messageRef: FIRDatabaseReference = self.channelRef!.child("messages")
     private var newMessageRefHandle: FIRDatabaseHandle?
+    
+    private lazy var userIsTypingRef: FIRDatabaseReference =
+        self.channelRef!.child("typingIndicator").child(self.senderId) // 1
+    private var localTyping = false // 2
+    var isTyping: Bool {
+        get {
+            return localTyping
+        }
+        set {
+            // 3
+            localTyping = newValue
+            userIsTypingRef.setValue(newValue)
+        }
+    }
+    
+    private lazy var usersTypingQuery: FIRDatabaseQuery =
+        self.channelRef!.child("typingIndicator").queryOrderedByValue().queryEqual(toValue: true)
 
     
     // MARK: View Lifecycle
@@ -70,6 +87,11 @@ final class ChatViewController: JSQMessagesViewController {
 //        // animates the receiving of a new message on the view
 //        finishReceivingMessage()
 //    }
+    
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        observeTyping()
+    }
     
     private func addMessage(withId id: String, name: String, text: String) {
         if let message = JSQMessage(senderId: id, displayName: name, text: text) {
@@ -122,6 +144,8 @@ final class ChatViewController: JSQMessagesViewController {
         JSQSystemSoundPlayer.jsq_playMessageSentSound() // 4
         
         finishSendingMessage() // 5
+        
+        isTyping = false
     }
     
     private func observeMessages() {
@@ -147,6 +171,24 @@ final class ChatViewController: JSQMessagesViewController {
         })
     }
     
+    private func observeTyping() {
+        let typingIndicatorRef = channelRef!.child("typingIndicator")
+        userIsTypingRef = typingIndicatorRef.child(senderId)
+        userIsTypingRef.onDisconnectRemoveValue()
+        
+        // 1
+        usersTypingQuery.observe(.value) { (data: FIRDataSnapshot) in
+            // 2 You're the only one typing, don't show the indicator
+            if data.childrenCount == 1 && self.isTyping {
+                return
+            }
+            
+            // 3 Are there others typing?
+            self.showTypingIndicator = data.childrenCount > 0
+            self.scrollToBottom(animated: true)
+        }
+    }
+    
     
     // MARK: UI and User Interaction
     private func setupOutgoingBubble() -> JSQMessagesBubbleImage {
@@ -160,5 +202,11 @@ final class ChatViewController: JSQMessagesViewController {
     }
     
     // MARK: UITextViewDelegate methods
+    override func textViewDidChange(_ textView: UITextView) {
+        super.textViewDidChange(textView)
+        // If the text is not empty, the user is typing
+//        print(textView.text != "")
+        isTyping = textView.text != ""
+    }
     
 }
