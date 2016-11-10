@@ -107,7 +107,7 @@
                                             <frame key="frameInset" minX="546" minY="7" width="46" height="30"/>
                                             <state key="normal" title="Create"/>
                                             <connections>
-                                                <action selector="createChannel:" destination="x2j-kb-5mV" eventType="touchUpInside" id="by0-vG-1aY"/>
+                                                <action selector="createChannel:" destination="x2j-kb-5mV" eventType="touchUpInside" id="pHC-n4-Zqu"/>
                                             </connections>
                                         </button>
                                     </subviews>

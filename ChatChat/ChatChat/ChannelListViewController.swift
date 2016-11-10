@@ -34,13 +34,58 @@ class ChannelListViewController: UITableViewController {
     var newChannelTextField: UITextField? // 2
     private var channels: [Channel] = [] // 3
     
-    override func viewDidAppear(_ animated: Bool) {
-        super.viewDidAppear(animated)
-        
-        channels.append(Channel(id: "1", name: "Channel1"))
-        channels.append(Channel(id: "2", name: "Channel2"))
-        channels.append(Channel(id: "3", name: "Channel3"))
-        self.tableView.reloadData()
+//    override func viewDidAppear(_ animated: Bool) {
+//        super.viewDidAppear(animated)
+//        
+//        channels.append(Channel(id: "1", name: "Channel1"))
+//        channels.append(Channel(id: "2", name: "Channel2"))
+//        channels.append(Channel(id: "3", name: "Channel3"))
+//        self.tableView.reloadData()
+//    }
+    
+    
+    private lazy var channelRef: FIRDatabaseReference = FIRDatabase.database().reference().child("channels")
+    private var channelRefHandle: FIRDatabaseHandle?
+    
+    // MARK: Firebase related methods
+    private func observeChannels() {
+        // Use the observe method to listen for new
+        // channels being written to the Firebase DB
+        channelRefHandle = channelRef.observe(.childAdded, with: { (snapshot) -> Void in // 1
+            let channelData = snapshot.value as! Dictionary<String, AnyObject> // 2
+            let id = snapshot.key
+            if let name = channelData["name"] as! String!, name.characters.count > 0 { // 3
+                self.channels.append(Channel(id: id, name: name))
+                self.tableView.reloadData()
+            } else {
+                print("Error! Could not decode channel data")
+            }
+        })
+    }
+    
+    
+    // MARK: View Lifecycle
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        title = "RW RIC"
+        observeChannels()
+    }
+    
+    deinit {
+        if let refHandle = channelRefHandle {
+            channelRef.removeObserver(withHandle: refHandle)
+        }
+    }
+    
+    // MARK :Actions
+    @IBAction func createChannel(_ sender: AnyObject) {
+        if let name = newChannelTextField?.text { // 1
+            let newChannelRef = channelRef.childByAutoId() // 2
+            let channelItem = [ // 3
+                "name": name
+            ]
+            newChannelRef.setValue(channelItem) // 4
+        }
     }
     
     // MARK: UITableViewDataSource
